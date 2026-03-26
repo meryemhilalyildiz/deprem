@@ -362,9 +362,10 @@
 
       if (controlsIntro) controlsIntro.style.display = "none";
 
-      // Oda turunu otomatik başlatma (senaryo tanıtım sistemi kaldırıldı)
-      const startBtn = document.getElementById("startScenarioBtn");
-      if (startBtn) startBtn.style.display = "block";
+      // Ad-soyad onayı sonrası oda turunu başlat
+      if (window.earthquakeSimulation && typeof window.earthquakeSimulation.runRoomTour === "function") {
+        window.earthquakeSimulation.runRoomTour();
+      }
     };
   </script>
 </body>

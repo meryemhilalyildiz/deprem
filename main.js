@@ -29,6 +29,50 @@ let interactionHintDiv; // E tuşu ipucu elementi
 window.isDoorOpen = false; // Kapı durumu
 window.doorGroup = null; // Kapı objesi referansı
 let handsGroup; // Procedural hands group
+let scenarioDurationMs = 25000;
+let nextDoorPenaltyAt = 0;
+let backpackCollected = false;
+let scenarioEndOverlay = null;
+let roomTourStarted = false;
+let isCrouching = false;
+let currentEyeHeight = 1.6;
+const CROUCH_EYE_HEIGHT = 1.0;
+const safeZonesUsed = {
+  bedLeft: false,
+  bedRight: false,
+  deskUnder: false,
+  closetSide: false,
+};
+const SAFE_ZONE_CONFIG = {
+  bedLeft: {
+    label: "Yatağın Solu",
+    points: 40,
+    center: new THREE.Vector3(-1.8, 1.6, -4.0),
+    targetPosition: new THREE.Vector3(-1.8, 1.6, -4.0),
+    targetLookAt: new THREE.Vector3(-0.5, 0.6, -4.8),
+  },
+  bedRight: {
+    label: "Yatağın Sağı",
+    points: 30,
+    center: new THREE.Vector3(0.8, 1.6, -4.0),
+    targetPosition: new THREE.Vector3(0.8, 1.6, -4.0),
+    targetLookAt: new THREE.Vector3(-0.5, 0.6, -4.8),
+  },
+  deskUnder: {
+    label: "Masanın Altı",
+    points: 60,
+    center: new THREE.Vector3(5.1, 0.95, -1.65),
+    targetPosition: new THREE.Vector3(5.1, 0.95, -1.65),
+    targetLookAt: new THREE.Vector3(5.1, 0.95, -1.2),
+  },
+  closetSide: {
+    label: "Dolabın Yanı",
+    points: 50,
+    center: new THREE.Vector3(4.6, 1.6, 1.5),
+    targetPosition: new THREE.Vector3(4.6, 1.6, 1.5),
+    targetLookAt: new THREE.Vector3(5.3, 1.2, 1.5),
+  },
+};
 
 // Animation mixers
 let mixerSmoke, mixerFE, modelFE;
@@ -92,6 +136,7 @@ const moveState = {
 const moveSpeed = 2.5;
 
 function onKeyDown(event) {
+  if (scenarioEnded) return;
   switch (event.code) {
     case "KeyW":
       moveState.forward = true;
@@ -111,15 +156,69 @@ function onKeyDown(event) {
         handleInteraction(currentInteractable);
       }
       break;
+    case "KeyC":
+    case "ControlLeft":
+      isCrouching = true;
+      break;
   }
 }
 
 // Etkileşim işleyicisi
 function handleInteraction(object) {
+  if (!object || scenarioEnded) return;
+  if (!timerStarted) return;
 
-    // Kapı aç/kapat
-    toggleDoor();
+  if (object.type === "door") {
+    endScenario("SENARYO BİTTİ", "door_interaction");
+    return;
   }
+
+  if (object.type === "window") {
+    addScore(-100, "Tehlikeli pencere etkileşimi (-100)");
+    decisionLog.push({
+      time: Date.now() - startTime,
+      action: "window_interaction_fail",
+      description: "Pencere ile etkileşime geçildi, senaryo başarısız.",
+    });
+    endScenario("ÖLDÜN", "fail_window");
+    return;
+  }
+
+  if (object.type === "backpack") {
+    if (!backpackCollected) {
+      backpackCollected = true;
+      addScore(40, "Deprem çantası alındı (+40)");
+      const backpackModel = loadedModels.backpack;
+      if (backpackModel && backpackModel.parent) {
+        backpackModel.parent.remove(backpackModel);
+      }
+      decisionLog.push({
+        time: Date.now() - startTime,
+        action: "backpack_collected",
+        description: "Deprem çantası alındı.",
+      });
+      showMessage("🎒 Deprem çantası alındı! +40 puan", 2000);
+    }
+    return;
+  }
+
+  if (object.type === "safezone") {
+    const zone = SAFE_ZONE_CONFIG[object.key];
+    if (!zone || safeZonesUsed[object.key]) return;
+
+    safeZonesUsed[object.key] = true;
+    addScore(zone.points, `${zone.label} güvenli alanı (+${zone.points})`);
+    camera.position.copy(zone.targetPosition);
+    camera.lookAt(zone.targetLookAt);
+    showMessage(`✅ ${zone.label}: Çök-Kapan-Tut! (+${zone.points})`, 2500);
+    decisionLog.push({
+      time: Date.now() - startTime,
+      action: `safe_zone_${object.key}`,
+      description: `${zone.label} güvenli alanı seçildi.`,
+    });
+    endScenario("SENARYO BİTTİ", `safezone_${object.key}`);
+  }
+}
 
 function toggleDoor() {
   if (!window.doorGroup) return;
@@ -139,6 +238,75 @@ function toggleDoor() {
   }
 }
 
+function addScore(points, description) {
+  userScore += points;
+  decisionLog.push({
+    time: Date.now() - startTime,
+    action: points >= 0 ? "score_gain" : "score_loss",
+    description,
+  });
+}
+
+function endScenario(resultText, reason = "completed") {
+  if (scenarioEnded) return;
+  scenarioEnded = true;
+  earthquakeEnable = false;
+  shakeEnable = false;
+  earthquakeStage = "stopped";
+  fallingObjectsActive = false;
+
+  const totalTime = timerStarted ? ((Date.now() - startTime) / 1000).toFixed(1) : "0.0";
+  const statusDiv = document.getElementById("earthquakeStatus");
+  if (statusDiv) {
+    statusDiv.textContent = resultText === "ÖLDÜN" ? "❌ ÖLDÜN" : "🏁 SENARYO BİTTİ";
+    statusDiv.style.animation = "none";
+    statusDiv.style.color = resultText === "ÖLDÜN" ? "#ff3b3b" : "#00ff00";
+    statusDiv.style.borderColor = resultText === "ÖLDÜN" ? "#ff3b3b" : "#00ff00";
+  }
+
+  const timerDiv = document.getElementById("timer");
+  if (timerDiv) {
+    timerDiv.textContent = `🏁 Bitti | Süre: ${totalTime}s | Puan: ${userScore}`;
+    timerDiv.style.color = "#00ff00";
+  }
+
+  if (!scenarioEndOverlay) {
+    scenarioEndOverlay = document.createElement("div");
+    scenarioEndOverlay.style.position = "fixed";
+    scenarioEndOverlay.style.top = "50%";
+    scenarioEndOverlay.style.left = "50%";
+    scenarioEndOverlay.style.transform = "translate(-50%, -50%)";
+    scenarioEndOverlay.style.background = "rgba(0,0,0,0.85)";
+    scenarioEndOverlay.style.border = "2px solid #ffffff";
+    scenarioEndOverlay.style.color = "#ffffff";
+    scenarioEndOverlay.style.padding = "18px 28px";
+    scenarioEndOverlay.style.borderRadius = "12px";
+    scenarioEndOverlay.style.zIndex = "20000";
+    scenarioEndOverlay.style.textAlign = "center";
+    document.body.appendChild(scenarioEndOverlay);
+  }
+
+  scenarioEndOverlay.innerHTML = `
+    <div style="font-size:30px;font-weight:700;margin-bottom:10px;">${resultText}</div>
+    <div style="font-size:22px;">Toplam Puan: <b>${userScore}</b></div>
+    <div style="font-size:16px;margin-top:8px;opacity:0.9;">Süre: ${totalTime}s</div>
+    <button id="restartScenarioBtn" style="margin-top:14px;background:#4caf50;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer;">
+      🔄 Yeniden Başlat
+    </button>
+  `;
+  scenarioEndOverlay.style.display = "block";
+  const restartBtn = document.getElementById("restartScenarioBtn");
+  if (restartBtn) restartBtn.onclick = () => window.location.reload();
+  if (controls && controls.isLocked) controls.unlock();
+  if (interactionHintDiv) interactionHintDiv.style.display = "none";
+
+  decisionLog.push({
+    time: Date.now() - startTime,
+    action: "scenario_end",
+    description: `Senaryo bitti (${reason}). Puan: ${userScore}`,
+  });
+}
+
 function onKeyUp(event) {
   switch (event.code) {
     case "KeyW":
@@ -153,7 +321,18 @@ function onKeyUp(event) {
     case "KeyD":
       moveState.right = false;
       break;
+    case "KeyC":
+    case "ControlLeft":
+      isCrouching = false;
+      break;
   }
+}
+
+function updatePosture(delta) {
+  const targetHeight = isCrouching ? CROUCH_EYE_HEIGHT : EYE_HEIGHT;
+  const lerpFactor = Math.min(1, delta * 10);
+  currentEyeHeight = THREE.MathUtils.lerp(currentEyeHeight, targetHeight, lerpFactor);
+  camera.position.y = currentEyeHeight;
 }
 
 // Oda içi sınır için yardımcı fonksiyon (GÜNCELLENDİ: Kapı ve Dışarı Çıkış)
@@ -195,6 +374,7 @@ function clampInsideRoom(position) {
 
 function updateFirstPersonMovement(delta) {
   // Sadece kilitliyse (senaryo başladığında kilitleniyor) harekete izin ver
+  if (scenarioEnded) return;
   if (!controls.isLocked) return;
 
   // Hiçbir tuşa basılmıyorsa çık
@@ -242,9 +422,6 @@ function updateFirstPersonMovement(delta) {
 
   // Kamerayı oda içinde tut
   clampInsideRoom(camera.position);
-
-  // Yüksekliği sabitle (göz hizası sabit kalsın)
-  camera.position.y = EYE_HEIGHT;
 }
 
 // Ses sistemı
@@ -272,32 +449,32 @@ const fileBase = "circle.glb";
 // Önerilen kaynaklar: Sketchfab, Poly Pizza, CGTrader (ücretsiz bölüm)
 const REALISTIC_MODELS = {
   bed: {
-    file: "Bedroom.glb",
-    // Ön duvara (z pozitif)
-    position: { x: -0.5, y: 0, z: 3.5 },
-    scale: { x: 2.0, y: 2.0, z: 2.0 },
+    file: "Bed.glb",
+    // Karşı duvara (z negatif)
+    position: { x: -0.5, y: 0, z: -4.2 },
+    scale: { x: 1.5, y: 1.5, z: 1.5 },
     rotation: { x: 0, y: 0, z: 0 },
   },
   closet: {
     file: "Closet.glb",
     // Sağ tarafa taşındı
-    position: { x: 5.25, y: 0, z: 1.5 },
+    position: { x: 5.6, y: 0, z: 1.5 },
     scale: { x: 0.75, y: 0.75, z: 0.75 },
     rotation: { x: 0, y: -Math.PI / 2, z: 0 },
   },
   bookcase: {
     file: "Bookcase with Books.glb",
     // Sağ duvara yaslı
-    position: { x: 5.25, y: 0, z: 0.0 },
+    position: { x: 5.6, y: 0, z: 0.0 },
     scale: { x: 0.7, y: 0.7, z: 0.7 },
     rotation: { x: 0, y: -Math.PI / 2, z: 0 },
   },
   window1: {
     file: "Window1 white open 1731.glb",
     // Sol duvara yaslı ve yukarıda
-    position: { x: -5.95, y: 1.3, z: 0.0 },
+    position: { x: -5.6, y: 1.6, z: 0.0 },
     scale: { x: 0.65, y: 0.65, z: 0.65 },
-    rotation: { x: 0, y: Math.PI / 2, z: 0 },
+    rotation: { x: 0, y: -Math.PI / 2, z: 0 },
   },
   ceilingLight: {
     file: "Light Ceiling.glb",
@@ -315,52 +492,52 @@ const REALISTIC_MODELS = {
   glass: {
     file: "Glass.glb",
     // Bardak: bilgisayarın yanında
-    position: { x: 5.35, y: 0.85, z: -1.25 },
+    position: { x: 5.5, y: 1.1, z: -1.25 },
     scale: { x: 0.11, y: 0.11, z: 0.11 },
     rotation: { x: 0, y: 0, z: 0 },
   },
   wallPainting: {
     file: "Wall painting.glb",
-    // Ön duvarda sol duvarda (+z, -x)
-    position: { x: -4.0, y: 1.5, z: 5.5 },
-    scale: { x: 0.5, y: 0.5, z: 0.5 },
-    rotation: { x: 0, y: 0, z: 0 },
+    // Yatağın olduğu duvarda, yatağın sağında
+    position: { x: 2, y: 1.45, z: -5.5 },
+    scale: { x: 0.1, y: 0.1, z: 0.1 },
+    rotation: { x: 0, y: Math.PI + Math.PI / 2, z: 0 },
   },
   smashedGlass: {
     file: "Smashed Glass.glb",
     // Cam kırıkları bardak yakınında, yere yakın
-    position: { x: 5.05, y: 0.12, z: -1.7 },
-    scale: { x: 0.18, y: 0.18, z: 0.18 },
+    position: { x: 4.6, y: 0, z: -1 },
+    scale: { x: 0.3, y: 0.3, z: 0.3 },
     rotation: { x: 0, y: 0, z: 0 },
   },
   officeChair: {
-    file: "Office Chair.glb",
-    // Masanın yanında
-    position: { x: 4.5, y: 0, z: -2.5 },
-    scale: { x: 0.85, y: 0.85, z: 0.85 },
+    file: "Office Chair-2.glb",
+    // Masanın yanında, oda içinde daha görünür konum
+    position: { x: 4.6, y: 0, z: 0 },
+    scale: { x: 1, y: 1, z: 1 },
     rotation: { x: 0, y: Math.PI, z: 0 },
   },
   // istersen eski objeler de kalabilir hatta simülasyona katılabilir
   desk: {
     file: "Desk.glb",
     // Sağ duvara yaslı ve daha büyük
-    position: { x: 5.05, y: 0, z: -1.65 },
+    position: { x: 5.45, y: 0, z: -1.65 },
     scale: { x: 1.0, y: 1.0, z: 1.0 },
     rotation: { x: 0, y: -Math.PI / 2, z: 0 },
   },
   computer: {
-    file: "Computer.glb",
+    file: "Profesional PC.glb",
     // Masanın üstünde (sağ duvar)
-    position: { x: 5.05, y: 1.0, z: -1.65 },
-    scale: { x: 1.2, y: 1.2, z: 1.2 },
+    position: { x: 0, y: 0, z: 0 },
+    scale: { x: 5, y: 5, z: 5 },
     rotation: { x: 0, y: Math.PI / 2, z: 0 },
   },
   backpack: {
     file: "Backpack.glb",
-    // Masanın yanında
-    position: { x: 4.5, y: 0, z: -3.0 },
-    scale: { x: 0.5, y: 0.5, z: 0.5 },
-    rotation: { x: 0, y: 0, z: 0 },
+    // Masanın yanında, görünür alanda
+    position: { x: 5.7, y: 0.4, z: -3 },
+    scale: { x: 2, y: 2, z: 2 },
+    rotation: { x: 0, y: Math.PI , z: 0 },
   },
 };
 
@@ -400,6 +577,7 @@ function loadModel(modelKey) {
           if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
+            child.userData.interactableKey = modelKey;
           }
         });
 
@@ -820,14 +998,14 @@ async function createRoom() {
 
   // Malzemeler
   const wallMaterial = new THREE.MeshStandardMaterial({
-    color: 0xf5f5f0,
+    color: 0x99C2DE,
     roughness: 0.9,
     metalness: 0.05,
   });
 
   // Gerçekçi ahşap zemin dokusu için malzeme
   const floorMaterial = new THREE.MeshStandardMaterial({
-    color: 0x8b6914,
+    color: 0x5F5345,
     roughness: 0.8,
     metalness: 0.05,
   });
@@ -945,7 +1123,11 @@ async function createRoom() {
 
   // Pivot noktası için grup (Menteşe solda olsun, kapı boşluğunda)
   const doorGroup = new THREE.Group();
-  doorGroup.position.set(-0.5, doorHeight / 2, roomSize / 2); // Menteşe noktası
+  doorGroup.position.set(
+    -0.5,
+    doorHeight / 2 - 2,
+    roomSize / 2 - wallThickness / 2
+  ); // Menteşe noktası (duvarın iç yüzüne hizalı)
 
   doorGroup.name = "DoorGroup";
   room.add(doorGroup);
@@ -963,9 +1145,9 @@ async function createRoom() {
     });
 
     // Kutu kapı ile aynı yerleşim mantığı (hinge x=-0.5 olacak şekilde)
-    doorModel.position.set(doorWidth / 2, 0, 0);
-    doorModel.scale.set(1.0, 1.0, 1.0);
-    doorModel.rotation.set(0, Math.PI / 2, 0);
+    doorModel.position.set(doorWidth - 1, 0.6, 0);
+    doorModel.scale.set(0.6, 0.6, 0.6);
+    doorModel.rotation.set(0, Math.PI, 0);
 
     // Raycaster / etkileşim için mesh isimlerini sabitle
     doorModel.traverse((child) => {
@@ -1039,14 +1221,37 @@ async function createRoom() {
   addIfLoaded("closet");
   addIfLoaded("bookcase");
   addIfLoaded("window1");
+  // Pencere iç yüzü için düz renk panel
+  const windowInnerPanel = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.7, 2.0),
+    new THREE.MeshStandardMaterial({
+      color: 0x278EF5,
+      roughness: 0.9,
+      metalness: 0.0,
+    })
+  );
+  windowInnerPanel.position.set(-5.7, 1.65, 0.0);
+  windowInnerPanel.rotation.set(0, Math.PI / 2, 0);
+  windowInnerPanel.userData.interactableKey = "window1";
+  room.add(windowInnerPanel);
+  // Panelin üstüne sarı yuvarlak
+  const windowInnerCircle = new THREE.Mesh(
+    new THREE.CircleGeometry(0.22, 48),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+  );
+  windowInnerCircle.position.set(-5.69, 2.1, -0.4);
+  windowInnerCircle.rotation.set(0, Math.PI / 2, 0);
+  windowInnerCircle.userData.interactableKey = "window1";
+  room.add(windowInnerCircle);
+
   addIfLoaded("ceilingLight");
   addIfLoaded("wallPainting");
-  addIfLoaded("smashedGlass");
   addIfLoaded("orchid");
   addIfLoaded("glass");
   addIfLoaded("officeChair");
   addIfLoaded("desk");
   addIfLoaded("computer");
+  addIfLoaded("backpack");
 
   // Deprem partikülleri için spawn noktası
   dustSpawn.position.set(0, 1, 0);
@@ -1812,6 +2017,21 @@ function startEarthquake() {
   shakeEnable = true;
   earthquakeIntensity = 1.0;
   earthquakeStage = "beginning";
+  nextDoorPenaltyAt = Date.now() + 1500;
+  backpackCollected = false;
+  Object.keys(safeZonesUsed).forEach((k) => {
+    safeZonesUsed[k] = false;
+  });
+  if (scenarioEndOverlay) scenarioEndOverlay.style.display = "none";
+  isCrouching = false;
+
+  // Deprem başlayınca bardak kırılır: bardak gider, kırık bardak görünür
+  if (loadedModels.glass && loadedModels.glass.parent) {
+    loadedModels.glass.parent.remove(loadedModels.glass);
+  }
+  if (loadedModels.smashedGlass && !loadedModels.smashedGlass.parent) {
+    room.add(loadedModels.smashedGlass);
+  }
 
   // Elektrik kesintisi - Deprem nedeniyle
   cutElectricity();
@@ -2001,6 +2221,7 @@ function animate() {
 
   // WASD ile birinci şahıs hareket güncellemesi
   updateFirstPersonMovement(deltaTime);
+  updatePosture(deltaTime);
 
   // Deprem sallanma efekti
   if (earthquakeEnable && guiObject.earthquakeBoolean) {
@@ -2037,6 +2258,7 @@ function animate() {
 
   // Deprem aşamasını güncelle
   updateEarthquakeStage();
+  updateScenarioProgress();
 
   // Deprem yoğunluğuna göre partikül oranını ayarla
   const intensityMultiplier = earthquakeStage === "developed" ? 1.8 : 1.0;
@@ -2046,15 +2268,16 @@ function animate() {
 
   // Zamanlayıcıyı göster (sadece senaryo devam ederken)
   if (timerStarted && !scenarioEnded && earthquakeStage !== "stopped") {
-    const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
+    const elapsedSeconds = (Date.now() - startTime) / 1000;
+    const remaining = Math.max(0, scenarioDurationMs / 1000 - elapsedSeconds).toFixed(1);
     const timerDiv = document.getElementById("timer");
     if (timerDiv) {
-      timerDiv.textContent = `⏱️ Geçen Süre: ${elapsedTime}s`;
+      timerDiv.textContent = `⏱️ Kalan Süre: ${remaining}s | Puan: ${userScore}`;
 
       // Renk değişimi - süreye göre
-      if (elapsedTime < 40) {
+      if (remaining > 15) {
         timerDiv.style.color = "#00ff00";
-      } else if (elapsedTime < 60) {
+      } else if (remaining > 7) {
         timerDiv.style.color = "#ffaa00";
       } else {
         timerDiv.style.color = "#ff0000";
@@ -2163,6 +2386,14 @@ function sleep(ms) {
 }
 
 async function runRoomTour() {
+  if (roomTourStarted) return;
+  if (!camera || !room || !controls) {
+    setTimeout(() => {
+      runRoomTour();
+    }, 400);
+    return;
+  }
+  roomTourStarted = true;
   console.log("🎬 Otomatik oda turu başlıyor...");
 
   // Kontrolleri kapalı tut
@@ -2173,32 +2404,46 @@ async function runRoomTour() {
 
   const targets = [
     {
-      // 1. Yangın Yeri (Masa/Isıtıcı)
-      pos: centerPos,
-      look: new THREE.Vector3(0.7, 0.5, -1.5),
-      text: "🌍 Deprem başlıyor: sarsıntı anında korun!",
-      wait: 2000,
+      // 1. Yatak
+      pos: new THREE.Vector3(-0.5, 1.6, -1.5),
+      look: new THREE.Vector3(-0.5, 0.6, -4.2),
+      text: "🛏 Güvenli alanlardan biri: yatağın yanları.",
+      wait: 1800,
     },
     {
-      // 2. Alarm ve Tüpler (Sol Duvar)
-      pos: centerPos,
-      look: new THREE.Vector3(-2.4, 1.2, 1.8),
-      text: "🛑 Cam/eşyalardan uzak dur ve Çök-Kapan-Tut yap.",
-      wait: 2500,
+      // 2. Masa
+      pos: new THREE.Vector3(3.6, 1.6, -1.2),
+      look: new THREE.Vector3(5.3, 0.9, -1.65),
+      text: "🪑 Masanın altı depremde en güvenli yerlerden.",
+      wait: 1800,
     },
     {
-      // 3. Yangın Dolabı (Sağ Duvar)
-      pos: centerPos,
-      look: new THREE.Vector3(2.4, 1.0, 1.5),
-      text: "🧭 Tahliye rotanı ve güvenli alanları gözden geçir.",
-      wait: 2500,
+      // 3. Deprem Çantası
+      pos: new THREE.Vector3(3.6, 1.6, -2.0),
+      look: new THREE.Vector3(3.8, 0.3, -2.8),
+      text: "🎒 Deprem çantasını görürsen E ile almayı unutma.",
+      wait: 1800,
     },
     {
-      // 4. Çıkış Kapısı (Arka)
-      pos: new THREE.Vector3(0, 1.6, 0), // Biraz daha öne gel ki arkayı rahat dön
-      look: new THREE.Vector3(0, 1.5, 3.0), // Kapıya doğru (Z=2.5)
-      text: "🚪 Acil Çıkış Kapısı arkanızda bulunuyor.",
-      wait: 2000,
+      // 4. Dolap
+      pos: new THREE.Vector3(3.5, 1.6, 1.2),
+      look: new THREE.Vector3(5.3, 1.0, 1.5),
+      text: "🧱 Dolabın yanı da güvenli alan olarak kullanılabilir.",
+      wait: 1800,
+    },
+    {
+      // 5. Cam (tehlikeli)
+      pos: new THREE.Vector3(0.0, 1.6, -0.8),
+      look: new THREE.Vector3(-5.7, 1.7, 0.0),
+      text: "⚠ CAM/PENCERE BÖLGESİNİ KULLANMAYIN!",
+      wait: 2200,
+    },
+    {
+      // 6. Kapı (tehlikeli)
+      pos: new THREE.Vector3(0.0, 1.6, 0.8),
+      look: new THREE.Vector3(0.0, 1.5, 5.8),
+      text: "⚠ SARSINTI SIRASINDA KAPIYA YAKLAŞMAYIN!",
+      wait: 2200,
     },
   ];
 
@@ -2234,6 +2479,24 @@ async function runRoomTour() {
 
 // Senaryo başlatıcı
 function startScenario() {
+  scenarioEnded = false;
+  timerStarted = false;
+  userScore = 0;
+  decisionLog = [];
+  backpackCollected = false;
+  isCrouching = false;
+  currentEyeHeight = EYE_HEIGHT;
+  if (loadedModels.backpack && loadedModels.backpack.parent !== room) {
+    room.add(loadedModels.backpack);
+  }
+  if (loadedModels.smashedGlass && loadedModels.smashedGlass.parent) {
+    loadedModels.smashedGlass.parent.remove(loadedModels.smashedGlass);
+  }
+  if (loadedModels.glass && !loadedModels.glass.parent) {
+    room.add(loadedModels.glass);
+  }
+  if (scenarioEndOverlay) scenarioEndOverlay.style.display = "none";
+
   // Başlat butonunu hemen gizle
   const startBtn = document.getElementById("startScenarioBtn");
   if (startBtn) {
@@ -2304,7 +2567,7 @@ window.addEventListener("load", () => {
 
 // Etkileşim kontrolü (her karede çalışır)
 function updateInteraction() {
-  if (!controls.isLocked) {
+  if (!controls.isLocked || scenarioEnded || !timerStarted) {
     if (interactionHintDiv) interactionHintDiv.style.display = 'none';
     return;
   }
@@ -2326,11 +2589,38 @@ function updateInteraction() {
       // Mesafe kontrolü
       if (intersects[0].distance < 3.0) { // 3 metre etkileşim mesafesi
         if (object.name === "Door") {
-          foundInteractable = object;
-          const actionText = window.isDoorOpen ? "KAPATMAK" : "AÇMAK";
-          hintText = `🚪 KAPIYI ${actionText} İÇİN [E]`;
+          foundInteractable = { type: "door" };
+          hintText = "🚪 KAPI İLE ETKİLEŞ [E]";
+        } else if (object.userData?.interactableKey === "window1") {
+          foundInteractable = { type: "window" };
+          hintText = "🪟 PENCEREYLE ETKİLEŞ [E] (TEHLİKELİ)";
+        } else if (
+          object.userData?.interactableKey === "backpack" &&
+          !backpackCollected
+        ) {
+          foundInteractable = { type: "backpack" };
+          hintText = "🎒 DEPREM ÇANTASINI AL [E]";
         }
       }
+    }
+  }
+
+  if (!foundInteractable) {
+    const zoneEntries = Object.entries(SAFE_ZONE_CONFIG);
+    let bestZone = null;
+    let bestDist = Infinity;
+    for (const [key, zone] of zoneEntries) {
+      if (safeZonesUsed[key]) continue;
+      const dist = camera.position.distanceTo(zone.center);
+      if (dist < 1.25 && dist < bestDist) {
+        bestZone = key;
+        bestDist = dist;
+      }
+    }
+    if (bestZone) {
+      foundInteractable = { type: "safezone", key: bestZone };
+      const zone = SAFE_ZONE_CONFIG[bestZone];
+      hintText = `🛡 ${zone.label} güvenli alanına geç [E] (+${zone.points})`;
     }
   }
 
@@ -2372,11 +2662,31 @@ function updateInteraction() {
 function updateEarthquakeStage() {
   const elapsed = Date.now() - startTime;
 
-  if (elapsed > 30000 && earthquakeStage === "beginning") { // 30 saniye sonra
+  if (elapsed > 12000 && earthquakeStage === "beginning") {
     earthquakeStage = "developed";
     earthquakeIntensity = 1.5;
     fallingObjectsActive = true;
     console.log("🌍 Deprem şiddetlendi!");
+  }
+}
+
+function updateScenarioProgress() {
+  if (!timerStarted || scenarioEnded) return;
+
+  const now = Date.now();
+  const elapsed = now - startTime;
+
+  // Sarsıntı anında kapıya yaklaşma cezası
+  const doorDistance = Math.hypot(camera.position.x, camera.position.z - ROOM_SIZE / 2);
+  if (earthquakeEnable && doorDistance < 1.6 && now >= nextDoorPenaltyAt) {
+    addScore(-10, "Deprem anında kapıya yaklaşma cezası (-10)");
+    nextDoorPenaltyAt = now + 2500;
+    showMessage("⚠ Sarsıntıda kapıya yaklaşmak tehlikeli! -10 puan", 1400);
+  }
+
+  // 25 saniye sonunda oyun biter
+  if (elapsed >= scenarioDurationMs) {
+    endScenario("SENARYO BİTTİ", "time_up");
   }
 }
 
