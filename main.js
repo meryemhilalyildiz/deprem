@@ -273,33 +273,31 @@ const fileBase = "circle.glb";
 const REALISTIC_MODELS = {
   bed: {
     file: "Bedroom.glb",
-    position: { x: 0, y: 0, z: -1.3 },
-    scale: { x: 0.8, y: 0.8, z: 0.8 },
+    // Arka duvara yaslı
+    position: { x: 0, y: 0, z: -5.35 },
+    scale: { x: 0.85, y: 0.85, z: 0.85 },
     rotation: { x: 0, y: Math.PI, z: 0 },
   },
   closet: {
     file: "Closet.glb",
-    position: { x: -2.0, y: 0, z: 0 },
-    scale: { x: 0.7, y: 0.7, z: 0.7 },
+    // Sol duvara yaslı
+    position: { x: -5.25, y: 0, z: 0.0 },
+    scale: { x: 0.75, y: 0.75, z: 0.75 },
     rotation: { x: 0, y: Math.PI / 2, z: 0 },
   },
   bookcase: {
     file: "Bookcase with Books.glb",
-    position: { x: 2.0, y: 0, z: 0 },
+    // Sağ duvara yaslı
+    position: { x: 5.25, y: 0, z: 0.0 },
     scale: { x: 0.7, y: 0.7, z: 0.7 },
     rotation: { x: 0, y: -Math.PI / 2, z: 0 },
   },
   window1: {
     file: "Window1 white open 1731.glb",
-    position: { x: 0, y: 0.8, z: 2.45 },
-    scale: { x: 0.8, y: 0.8, z: 0.8 },
+    // Ön duvara yaslı
+    position: { x: 0, y: 0.8, z: 5.55 },
+    scale: { x: 0.75, y: 0.75, z: 0.75 },
     rotation: { x: 0, y: Math.PI, z: 0 },
-  },
-  roomDoor: {
-    file: "Door.glb",
-    position: { x: -1.5, y: 0, z: 2.45 },
-    scale: { x: 0.9, y: 0.9, z: 0.9 },
-    rotation: { x: 0, y: Math.PI / 2, z: 0 },
   },
   ceilingLight: {
     file: "Light Ceiling.glb",
@@ -309,39 +307,52 @@ const REALISTIC_MODELS = {
   },
   orchid: {
     file: "Orchid.glb",
-    position: { x: 1.3, y: 0, z: -1.3 },
-    scale: { x: 0.5, y: 0.5, z: 0.5 },
+    // Sol arka köşe: çiçek çok büyük olmasın
+    position: { x: -4.95, y: 0, z: -4.75 },
+    scale: { x: 0.25, y: 0.25, z: 0.25 },
     rotation: { x: 0, y: -Math.PI / 4, z: 0 },
   },
   glass: {
     file: "Glass.glb",
-    position: { x: 0.8, y: 0.9, z: -1.0 },
-    scale: { x: 0.5, y: 0.5, z: 0.5 },
-    rotation: { x: 0, y: Math.PI / 3, z: 0 },
+    // Bardak: masa üstü gibi, duvara yakın
+    position: { x: 5.05, y: 0.85, z: -1.7 },
+    scale: { x: 0.22, y: 0.22, z: 0.22 },
+    rotation: { x: 0, y: 0, z: 0 },
+  },
+  wallPainting: {
+    file: "Wall painting.glb",
+    // Arka duvara yaslı
+    position: { x: 0, y: 1.35, z: -5.55 },
+    scale: { x: 0.28, y: 0.28, z: 0.28 },
+    rotation: { x: 0, y: 0, z: 0 },
+  },
+  smashedGlass: {
+    file: "Smashed Glass.glb",
+    // Cam kırıkları bardak yakınında, yere yakın
+    position: { x: 5.05, y: 0.12, z: -1.7 },
+    scale: { x: 0.18, y: 0.18, z: 0.18 },
+    rotation: { x: 0, y: 0, z: 0 },
   },
   officeChair: {
     file: "Office Chair.glb",
-    position: { x: -0.5, y: 0, z: 1.2 },
-    scale: { x: 0.9, y: 0.9, z: 0.9 },
+    // Masa önü
+    position: { x: 4.25, y: 0, z: -1.55 },
+    scale: { x: 0.85, y: 0.85, z: 0.85 },
     rotation: { x: 0, y: Math.PI, z: 0 },
-  },
-  electricalPanel: {
-    file: "electrical_panel.glb",
-    position: { x: 2.3, y: 1.2, z: -1.8 },
-    scale: { x: 0.8, y: 0.8, z: 0.8 },
-    rotation: { x: 0, y: -Math.PI / 2, z: 0 },
   },
   // istersen eski objeler de kalabilir hatta simülasyona katılabilir
   desk: {
     file: "Desk.glb",
-    position: { x: 0.8, y: 0, z: -0.6 },
-    scale: { x: 0.7, y: 0.7, z: 0.7 },
+    // Sağ duvara yaslı ve daha büyük
+    position: { x: 5.05, y: 0, z: -1.65 },
+    scale: { x: 1.0, y: 1.0, z: 1.0 },
     rotation: { x: 0, y: -Math.PI / 2, z: 0 },
   },
   computer: {
     file: "Computer.glb",
-    position: { x: 0.85, y: 0.9, z: -0.45 },
-    scale: { x: 0.4, y: 0.4, z: 0.4 },
+    // Masa üstünde
+    position: { x: 5.15, y: 0.85, z: -1.25 },
+    scale: { x: 0.65, y: 0.65, z: 0.65 },
     rotation: { x: 0, y: -Math.PI / 2, z: 0 },
   },
 };
@@ -360,7 +371,9 @@ function loadModel(modelKey) {
     }
 
     loader.load(
-      config.file,
+      // Dosya adlarında boşluk olabileceği için (örn: "Office Chair.glb")
+      // URL'yi encode ederek 404 yükleme hatalarını engelliyoruz.
+      encodeURI(config.file),
       (gltf) => {
         const model = gltf.scene;
         model.position.set(
@@ -768,7 +781,9 @@ function onWindowResize() {
 
   composer.setSize(window.innerWidth, window.innerHeight); // Update composer size
 
-  render();
+  // Resize sonrası yeniden çizim yap (render() fonksiyonu yoktu).
+  if (composer) composer.render();
+  else renderer.render(scene, camera);
 }
 
 function playFeAnimations() {
@@ -918,40 +933,46 @@ async function createRoom() {
   frontTop.receiveShadow = true;
   room.add(frontTop);
 
-  // KAPI
+  // KAPI (assets/3D/Door.glb ile - prosedürel kapı kaldırıldı)
   const doorWidth = 1.0;
-  const doorThick = 0.05;
-  const doorGeo = new THREE.BoxGeometry(doorWidth, doorHeight, doorThick);
-  const doorMat = new THREE.MeshStandardMaterial({ color: 0x442200, roughness: 0.6 }); // Ahşap kapı
-  const doorMesh = new THREE.Mesh(doorGeo, doorMat);
 
   // Pivot noktası için grup (Menteşe solda olsun)
   const doorGroup = new THREE.Group();
   doorGroup.position.set(-0.5, doorHeight / 2, roomSize / 2); // Menteşe noktası
 
-  // Mesh'i gruba göre konumlandır (Grup merkezinden sağa doğru uzayacak)
-  doorMesh.position.set(doorWidth / 2, 0, 0);
-
-  doorMesh.name = "Door"; // Raycaster için isim
-  doorGroup.add(doorMesh);
-
-  // Kapı kolu
-  const handleGeo = new THREE.SphereGeometry(0.05);
-  const handleMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8 });
-  const handle = new THREE.Mesh(handleGeo, handleMat);
-  handle.position.set(doorWidth - 0.1, 0, 0.05); // Kapının ucunda (Dış)
-  handle.name = "Door";
-  doorGroup.add(handle);
-
-  // İç Kapı Kolu
-  const handleInside = new THREE.Mesh(handleGeo, handleMat);
-  handleInside.position.set(doorWidth - 0.1, 0, -0.05); // Kapının ucunda (İç)
-  handleInside.name = "Door";
-  doorGroup.add(handleInside);
-
   doorGroup.name = "DoorGroup";
   room.add(doorGroup);
   window.doorGroup = doorGroup;
+
+  // Kapı modelini yükle ve kapı boşluğuna yerleştir
+  try {
+    const doorModel = await new Promise((resolve, reject) => {
+      loader.load(
+        "Door.glb",
+        (gltf) => resolve(gltf.scene),
+        undefined,
+        (err) => reject(err)
+      );
+    });
+
+    // Kutu kapı ile aynı yerleşim mantığı (hinge x=-0.5 olacak şekilde)
+    doorModel.position.set(doorWidth / 2, 0, 0);
+    doorModel.scale.set(0.9, 0.9, 0.9);
+    doorModel.rotation.set(0, Math.PI / 2, 0);
+
+    // Raycaster / etkileşim için mesh isimlerini sabitle
+    doorModel.traverse((child) => {
+      if (child.isMesh || child.isSkinnedMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.name = "Door";
+      }
+    });
+
+    doorGroup.add(doorModel);
+  } catch (err) {
+    console.warn("⚠ Door.glb yüklenemedi:", err);
+  }
 
   // Acil çıkış tabelası (GLB): Kapının tam üstünde, odanın içinde (duvara sabit)
   if (false) {
@@ -998,220 +1019,27 @@ async function createRoom() {
   outFloor.receiveShadow = true;
   room.add(outFloor);
 
-  // Acil Çıkış Takip Yolu (Gelişmiş - L Şekli, Kusursuz Köşe)
-  if (false) {
-    const exitPathGroup = new THREE.Group();
-    room.add(exitPathGroup);
-
-  // Materyaller
-  const pathMat = new THREE.MeshBasicMaterial({ color: 0x009900, side: THREE.DoubleSide }); // Yeşil Yol
-  const borderMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, side: THREE.DoubleSide }); // Sarı Şeritler
-  const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, side: THREE.DoubleSide }); // Sarı Oklar
-
-  const pathY = 0.02; // Zemin üstü
-
-  // Koordinat Limitleri:
-  // Z Başlangıç: 2.5 (Kapı)
-  // Z Dönüş Merkezi: 5.0 (Koridor Ortası)
-  // X Bitiş: -2.2 (Sola gidiş, zemin sınırı -2.5 olduğu için güvenli pay bırakıldı)
-
-  // 1. DİKEY BÖLÜM (Kapıdan İleri) - YEŞİL
-  // Z: 2.5 -> 5.4 (Dönüşün dış kenarına kadar)
-  const vGreenGeo = new THREE.PlaneGeometry(0.8, 2.9);
-  const vGreen = new THREE.Mesh(vGreenGeo, pathMat);
-  vGreen.rotation.x = -Math.PI / 2;
-  vGreen.position.set(0, pathY, 2.5 + 1.45); // Orta nokta: 3.95
-  exitPathGroup.add(vGreen);
-
-  // 2. YATAY BÖLÜM (Sola Dönüş) - YEŞİL
-  // X: -0.4 (Dikey parçanın iç kenarı) -> -2.2
-  const hGreenGeo = new THREE.PlaneGeometry(1.8, 0.8);
-  const hGreen = new THREE.Mesh(hGreenGeo, pathMat);
-  hGreen.rotation.x = -Math.PI / 2;
-  hGreen.position.set(-1.3, pathY, 5.0); // Z=5.0 merkezli
-  exitPathGroup.add(hGreen);
-
-  // 3. DIŞ KENAR (Sağ -> Üst Sarı Şerit)
-  // Dikey Sağ Border: Z 2.5 -> 5.45
-  const borderRightGeo = new THREE.PlaneGeometry(0.1, 2.95);
-  const borderRight = new THREE.Mesh(borderRightGeo, borderMat);
-  borderRight.rotation.x = -Math.PI / 2;
-  borderRight.position.set(0.45, pathY, 2.5 + 1.475);
-  exitPathGroup.add(borderRight);
-
-  // Yatay Üst Border: X 0.45 -> -2.2
-  const borderTopGeo = new THREE.PlaneGeometry(2.65, 0.1);
-  const borderTop = new THREE.Mesh(borderTopGeo, borderMat);
-  borderTop.rotation.x = -Math.PI / 2;
-  borderTop.position.set(-0.875, pathY, 5.45);
-  exitPathGroup.add(borderTop);
-
-  // 4. İÇ KENAR (Sol -> Alt Sarı Şerit)
-  // Dikey Sol Border: Z 2.5 -> 4.55 (İç köşe hizası)
-  const borderLeftGeo = new THREE.PlaneGeometry(0.1, 2.05);
-  const borderLeft = new THREE.Mesh(borderLeftGeo, borderMat);
-  borderLeft.rotation.x = -Math.PI / 2;
-  borderLeft.position.set(-0.45, pathY, 2.5 + 1.025);
-  exitPathGroup.add(borderLeft);
-
-  // Yatay Alt Border: X -0.45 -> -2.2
-  const borderBottomGeo = new THREE.PlaneGeometry(1.75, 0.1);
-  const borderBottom = new THREE.Mesh(borderBottomGeo, borderMat);
-  borderBottom.rotation.x = -Math.PI / 2;
-  borderBottom.position.set(-1.325, pathY, 4.55);
-  exitPathGroup.add(borderBottom);
-
-  // KÖŞE KAPATMA (Sarı Kareler - Z-fighting önlemek için gerekirse)
-  // Şu anki geometri overlap ile doğal kapanıyor.
-
-  // --- OKLAR ---
-  const arrowGeo = new THREE.CircleGeometry(0.3, 3); // Üçgen Ok
-
-  // Ok 1: İleri
-  const arrow1 = new THREE.Mesh(arrowGeo, arrowMat);
-  arrow1.rotation.x = -Math.PI / 2;
-  arrow1.rotation.z = -Math.PI / 2; // +Z yönü
-  arrow1.position.set(0, pathY + 0.01, 3.5);
-  exitPathGroup.add(arrow1);
-
-  // Ok 2: Sola
-  const arrow2 = new THREE.Mesh(arrowGeo, arrowMat);
-  arrow2.rotation.x = -Math.PI / 2;
-  arrow2.rotation.z = Math.PI; // -X yönü (Sol)
-  arrow2.position.set(-1.5, pathY + 0.01, 5.0);
-    exitPathGroup.add(arrow2);
-  }
-
   // ==================== GERÇEKÇİ MODELLER ====================
-  // Önce modelleri yüklemeyi dene, başarısız olursa fallback kullan
+  // Önce modelleri yükle, ardından sadece mevcut assetleri odaya ekle
+  await loadAllRealisticModels();
 
-  if (false) {
-    await loadAllRealisticModels();
-
-  // -------------------- YATAK ODASI MODELLERİ --------------------
-  if (loadedModels.bed) {
-    room.add(loadedModels.bed);
-    console.log("✓ Yatak modeli eklendi");
-  }
-  if (loadedModels.closet) {
-    room.add(loadedModels.closet);
-    console.log("✓ Dolap modeli eklendi");
-  }
-  if (loadedModels.bookcase) {
-    room.add(loadedModels.bookcase);
-    console.log("✓ Kitaplık modeli eklendi");
-  }
-  if (loadedModels.window1) {
-    room.add(loadedModels.window1);
-    console.log("✓ Pencere modeli eklendi");
-  }
-  if (loadedModels.roomDoor) {
-    room.add(loadedModels.roomDoor);
-    console.log("✓ Kapı modeli eklendi");
-  }
-  if (loadedModels.ceilingLight) {
-    room.add(loadedModels.ceilingLight);
-    console.log("✓ Tavan lambası modeli eklendi");
-  }
-  if (loadedModels.orchid) {
-    room.add(loadedModels.orchid);
-    console.log("✓ Orkide modeli eklendi");
-  }
-  if (loadedModels.glass) {
-    room.add(loadedModels.glass);
-    console.log("✓ Cam dekor modeli eklendi");
-  }
-  if (loadedModels.officeChair) {
-    room.add(loadedModels.officeChair);
-    console.log("✓ Sandalye modeli eklendi");
-  }
-  if (loadedModels.electricalPanel) {
-    room.add(loadedModels.electricalPanel);
-    console.log("✓ Elektrik paneli eklendi");
-  }
-  if (loadedModels.desk) {
-    room.add(loadedModels.desk);
-    console.log("✓ Çalışma masası modeli eklendi");
-  }
-  if (loadedModels.computer) {
-    room.add(loadedModels.computer);
-    console.log("✓ Bilgisayar modeli eklendi");
-  }
-
-  // -------------------- BİLGİSAYAR DONANIMI --------------------
-  let monitor, screen, keyboard, computerMouse;
-
-  if (loadedModels.monitor) {
-    monitor = loadedModels.monitor;
-    monitor.name = "monitor";
-    room.add(monitor);
-    console.log("✓ Gerçekçi monitör eklendi");
-  } else {
-    // Fallback: Basit monitör
-    const monitorData = createFallbackMonitor();
-    monitor = monitorData.monitor;
-    screen = monitorData.screen;
-  }
-
-  if (loadedModels.keyboard) {
-    keyboard = loadedModels.keyboard;
-    keyboard.name = "keyboard";
-    room.add(keyboard);
-    console.log("✓ Gerçekçi klavye eklendi");
-  } else if (!loadedModels.monitor) {
-    // Fallback zaten oluşturuldu
-  }
-
-  if (loadedModels.mouse) {
-    computerMouse = loadedModels.mouse;
-    room.add(computerMouse);
-    console.log("✓ Gerçekçi mouse eklendi");
-  }
-
-  // -------------------- OFİS SANDALYESİ --------------------
-  if (loadedModels.chair) {
-    room.add(loadedModels.chair);
-    console.log("✓ Gerçekçi ofis sandalyesi eklendi");
-  } else {
-    // Fallback: Basit sandalye
-    createFallbackChair();
-  }
-
-  // -------------------- MİSAFİR SANDALYELERİ --------------------
-  if (loadedModels.guestChair1) {
-    room.add(loadedModels.guestChair1);
-    console.log("✓ Misafir sandalyesi 1 eklendi");
-  }
-
-  if (loadedModels.guestChair2) {
-    room.add(loadedModels.guestChair2);
-    console.log("✓ Misafir sandalyesi 2 eklendi");
-  }
-
-  // -------------------- BİTKİ --------------------
-  if (loadedModels.plant) {
-    room.add(loadedModels.plant);
-    console.log("✓ Bitki eklendi");
-  }
-
-  // Deprem sırasında etkileşime açık ekipman referansları
-  window.computerEquipment = {
-    monitor: monitor || loadedModels.monitor,
-    screen: screen,
-    keyboard: keyboard || loadedModels.keyboard,
-    mouse: computerMouse || loadedModels.mouse,
+  const addIfLoaded = (key) => {
+    const obj = loadedModels[key];
+    if (obj) room.add(obj);
   };
 
-  // Elektrik panosu
-  if (loadedModels.electricalPanel) {
-    room.add(loadedModels.electricalPanel);
-    window.electricalPanel = loadedModels.electricalPanel;
-    console.log("✓ Gerçekçi elektrik panosu eklendi");
-  } else {
-    createElectricalPanel();
-  }
-
-  }
+  addIfLoaded("bed");
+  addIfLoaded("closet");
+  addIfLoaded("bookcase");
+  addIfLoaded("window1");
+  addIfLoaded("ceilingLight");
+  addIfLoaded("wallPainting");
+  addIfLoaded("smashedGlass");
+  addIfLoaded("orchid");
+  addIfLoaded("glass");
+  addIfLoaded("officeChair");
+  addIfLoaded("desk");
+  addIfLoaded("computer");
 
   // Deprem partikülleri için spawn noktası
   dustSpawn.position.set(0, 1, 0);
@@ -2436,10 +2264,8 @@ function startScenario() {
       timerDiv.style.display = "block";
     }
 
-    // İmleci kilitle ve nişangahı göster
-    if (controls && !controls.isLocked) {
-      controls.lock();
-    }
+    // İmleç kilidi: Pointer Lock kullanıcı jesti ister.
+    // Kilidi, timerStarted olunca kullanıcı tıklamasıyla yapan mevcut event akışı halledecek.
 
     const crosshair = document.getElementById("crosshair");
     if (crosshair) {
