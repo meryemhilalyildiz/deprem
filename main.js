@@ -76,6 +76,9 @@ function initAudio() {
 // Göz hizası sabit yüksekliği (metre cinsinden)
 const EYE_HEIGHT = 1.6;
 
+// Oda boyutu (m). Odayı belirgin şekilde büyütmek için kullanılır.
+const ROOM_SIZE = 12;
+
 // ==================== FPS HAREKET KONTROLLERİ (WASD) ====================
 // Klavye ile birinci şahıs (kişi POV) hareketi için değişkenler
 const moveState = {
@@ -155,10 +158,11 @@ function onKeyUp(event) {
 
 // Oda içi sınır için yardımcı fonksiyon (GÜNCELLENDİ: Kapı ve Dışarı Çıkış)
 function clampInsideRoom(position) {
-  const roomHalfSize = 2.4; // Yan ve arka duvarlar
-  const wallZ = 2.5; // Ön duvar (Kapı duvarı)
-  const outsideLimitZ = 6.0; // Dışarıda gidilebilecek son nokta
+  const roomHalfSize = ROOM_SIZE / 2 - 0.1; // Yan ve arka duvarlar (iç boşluk payı)
+  const wallZ = ROOM_SIZE / 2; // Ön duvar (Kapı duvarı)
+  const outsideLimitZ = wallZ + 3.5; // Dışarıda gidilebilecek son nokta
   const doorHalfWidth = 0.5; // Kapı genişliğinin yarısı (1m kapı)
+  const doorwayInset = 0.3; // Duvar/kapı geçiş kontrol bandı
 
   // X Sınırları (Oda genişliği - Dışarıda da aynı genişlikte koridor varsayalım)
   if (position.x > roomHalfSize) position.x = roomHalfSize;
@@ -170,19 +174,19 @@ function clampInsideRoom(position) {
 
   // Ön Duvar Kontrolü (Z = 2.5 civarı)
   // Eğer duvara yaklaşıyorsa
-  if (position.z > 2.2 && position.z < 2.8) {
+  if (position.z > wallZ - doorwayInset && position.z < wallZ + doorwayInset) {
     const inDoorway = Math.abs(position.x) < doorHalfWidth;
 
     if (!inDoorway) {
       // Kapı hizasında değiliz - Duvar var
-      if (position.z < wallZ) position.z = 2.2; // İçeride kal
-      else position.z = 2.8; // Dışarıda kal
+      if (position.z < wallZ) position.z = wallZ - doorwayInset; // İçeride kal
+      else position.z = wallZ + doorwayInset; // Dışarıda kal
     } else {
       // Kapı hizasındayız
       if (!window.isDoorOpen) {
         // Kapı kapalı - Geçiş yok
-        if (position.z < wallZ) position.z = 2.2;
-        else position.z = 2.8;
+        if (position.z < wallZ) position.z = wallZ - doorwayInset;
+        else position.z = wallZ + doorwayInset;
       }
       // Kapı açıksa geçebiliriz
     }
@@ -481,12 +485,7 @@ async function init() {
   const axes = new THREE.AxesHelper(1.5);
   scene.add(axes);
 
-  // Test için basit küp ekle
-  const geometry = new THREE.BoxGeometry(1, 1, 1);
-  const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-  const cube = new THREE.Mesh(geometry, material);
-  cube.position.set(0, 1, -2);
-  scene.add(cube);
+  // Test için basit küp (kırmızı) - kaldırıldı
 
   // Particle emitters
   dustSpawn = new THREE.Object3D();
@@ -723,7 +722,7 @@ async function init() {
     });
     const lamp = new THREE.Mesh(lampGeometry, lampMaterial);
     lamp.position.copy(emergencyLight.position);
-    room.add(lamp);
+    // room.add(lamp); // Oda içi boşaltıldı
   });
 
   window.emergencyLights.visible = false; // Başlangıçta kapalı
@@ -793,7 +792,7 @@ function stopFeAnimations() {
 async function createRoom() {
   room = new THREE.Group();
 
-  const roomSize = 5;
+  const roomSize = ROOM_SIZE;
   const wallHeight = 3;
   const wallThickness = 0.1;
 
@@ -879,17 +878,33 @@ async function createRoom() {
   // Kapı boşluğu: x= -0.5 ile 0.5 arası (1m genişlik), Yükseklik 2.2m
 
   // Sol Parça (İçeriden bakınca sağ, x > 0.5)
-  const frontRightGeo = new THREE.BoxGeometry(2.0, wallHeight, wallThickness);
+  const frontRightGeo = new THREE.BoxGeometry(
+    roomSize / 2 - 0.5,
+    wallHeight,
+    wallThickness
+  );
   const frontRight = new THREE.Mesh(frontRightGeo, wallMaterial);
-  frontRight.position.set(1.5, wallHeight / 2, roomSize / 2); // (0.5 + 2.5)/2 = 1.5
+  frontRight.position.set(
+    roomSize / 4 + 0.25,
+    wallHeight / 2,
+    roomSize / 2
+  );
   frontRight.castShadow = true;
   frontRight.receiveShadow = true;
   room.add(frontRight);
 
   // Sağ Parça (İçeriden bakınca sol, x < -0.5)
-  const frontLeftGeo = new THREE.BoxGeometry(2.0, wallHeight, wallThickness);
+  const frontLeftGeo = new THREE.BoxGeometry(
+    roomSize / 2 - 0.5,
+    wallHeight,
+    wallThickness
+  );
   const frontLeft = new THREE.Mesh(frontLeftGeo, wallMaterial);
-  frontLeft.position.set(-1.5, wallHeight / 2, roomSize / 2);
+  frontLeft.position.set(
+    -(roomSize / 4 + 0.25),
+    wallHeight / 2,
+    roomSize / 2
+  );
   frontLeft.castShadow = true;
   frontLeft.receiveShadow = true;
   room.add(frontLeft);
@@ -939,51 +954,54 @@ async function createRoom() {
   window.doorGroup = doorGroup;
 
   // Acil çıkış tabelası (GLB): Kapının tam üstünde, odanın içinde (duvara sabit)
-  loader.load(
-    "exit_box.glb",
-    (gltf) => {
-      const exitSign = gltf.scene;
+  if (false) {
+    loader.load(
+      "exit_box.glb",
+      (gltf) => {
+        const exitSign = gltf.scene;
 
-      exitSign.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
+        exitSign.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
 
-      // Konum: kapı boşluğunun tam üstü, ön duvarın iç yüzeyi
-      // Kapı üstüne daha yakın ve biraz daha büyük
-      exitSign.position.set(
-        0,
-        doorHeight + 0.15,
-        roomSize / 2 - wallThickness / 2 - 0.01
-      );
+        // Konum: kapı boşluğunun tam üstü, ön duvarın iç yüzeyi
+        // Kapı üstüne daha yakın ve biraz daha büyük
+        exitSign.position.set(
+          0,
+          doorHeight + 0.15,
+          roomSize / 2 - wallThickness / 2 - 0.01
+        );
 
-      // Ölçek: biraz daha büyük
-      exitSign.scale.set(0.65, 0.65, 0.65);
+        // Ölçek: biraz daha büyük
+        exitSign.scale.set(0.65, 0.65, 0.65);
 
-      // Duvara paralel olsun (90°)
-      exitSign.rotation.y = Math.PI / 2;
+        // Duvara paralel olsun (90°)
+        exitSign.rotation.y = Math.PI / 2;
 
-      room.add(exitSign);
-    },
-    undefined,
-    (error) => {
-      console.warn("⚠ exit_box.glb yüklenemedi:", error);
-    }
-  );
+        room.add(exitSign);
+      },
+      undefined,
+      (error) => {
+        console.warn("⚠ exit_box.glb yüklenemedi:", error);
+      }
+    );
+  }
 
   // Dış Zemin (Balkon/Koridor)
   const outFloorGeo = new THREE.BoxGeometry(roomSize, wallThickness, 4.0);
   const outFloorMat = new THREE.MeshStandardMaterial({ color: 0x333333 }); // Beton zemin
   const outFloor = new THREE.Mesh(outFloorGeo, outFloorMat);
-  outFloor.position.set(0, -wallThickness / 2, 4.5); // 2.5 + 2.0 = 4.5
+  outFloor.position.set(0, -wallThickness / 2, roomSize / 2 + 2.0);
   outFloor.receiveShadow = true;
   room.add(outFloor);
 
   // Acil Çıkış Takip Yolu (Gelişmiş - L Şekli, Kusursuz Köşe)
-  const exitPathGroup = new THREE.Group();
-  room.add(exitPathGroup);
+  if (false) {
+    const exitPathGroup = new THREE.Group();
+    room.add(exitPathGroup);
 
   // Materyaller
   const pathMat = new THREE.MeshBasicMaterial({ color: 0x009900, side: THREE.DoubleSide }); // Yeşil Yol
@@ -1061,12 +1079,14 @@ async function createRoom() {
   arrow2.rotation.x = -Math.PI / 2;
   arrow2.rotation.z = Math.PI; // -X yönü (Sol)
   arrow2.position.set(-1.5, pathY + 0.01, 5.0);
-  exitPathGroup.add(arrow2);
+    exitPathGroup.add(arrow2);
+  }
 
   // ==================== GERÇEKÇİ MODELLER ====================
   // Önce modelleri yüklemeyi dene, başarısız olursa fallback kullan
 
-  await loadAllRealisticModels();
+  if (false) {
+    await loadAllRealisticModels();
 
   // -------------------- YATAK ODASI MODELLERİ --------------------
   if (loadedModels.bed) {
@@ -1189,6 +1209,8 @@ async function createRoom() {
     console.log("✓ Gerçekçi elektrik panosu eklendi");
   } else {
     createElectricalPanel();
+  }
+
   }
 
   // Deprem partikülleri için spawn noktası
@@ -2175,14 +2197,7 @@ function animate() {
   //   );
 
   if (!guiObject.pauseBoolean) {
-    if (dustRate > 0) dustEffect.update(deltaTime * dustSpeed, dustRate);
-    if (debrisRate > 0) debrisEffect.update(deltaTime * debrisSpeed, debrisRate);
-
-    // Düşen nesneler (gelişmiş aşamada)
-    if (fallingObjectsActive && fallingObjectsEffect && dustRateValue > 0) {
-      const fallingObjectsRate = earthquakeEnable ? dustRateValue * 0.5 : 0;
-      if (fallingObjectsRate > 0) fallingObjectsEffect.update(deltaTime * dustSpeed, fallingObjectsRate);
-    }
+    // Duman/partikül efekti kapalı (istenen değişiklik)
   }
 
   // Deprem aşamasını güncelle
@@ -2190,14 +2205,9 @@ function animate() {
 
   // Deprem yoğunluğuna göre partikül oranını ayarla
   const intensityMultiplier = earthquakeStage === "developed" ? 1.8 : 1.0;
-  dustRate =
-    earthquakeEnable && guiObject.earthquakeBoolean
-      ? dustRateValue * earthquakeIntensity * intensityMultiplier
-      : 0;
-  debrisRate =
-    shakeEnable && guiObject.shakeBoolean
-      ? debrisRateValue * earthquakeIntensity * intensityMultiplier
-      : 0;
+  // Duman/partikül oranlarını her koşulda sıfırla
+  dustRate = 0;
+  debrisRate = 0;
 
   // Zamanlayıcıyı göster (sadece senaryo devam ederken)
   if (timerStarted && !scenarioEnded && earthquakeStage !== "stopped") {
