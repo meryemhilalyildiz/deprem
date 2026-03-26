@@ -273,17 +273,17 @@ const fileBase = "circle.glb";
 const REALISTIC_MODELS = {
   bed: {
     file: "Bedroom.glb",
-    // Arka duvara yaslı
-    position: { x: 0, y: 0, z: -5.35 },
-    scale: { x: 0.85, y: 0.85, z: 0.85 },
-    rotation: { x: 0, y: Math.PI, z: 0 },
+    // Ön duvara (z pozitif)
+    position: { x: -0.5, y: 0, z: 3.5 },
+    scale: { x: 2.0, y: 2.0, z: 2.0 },
+    rotation: { x: 0, y: 0, z: 0 },
   },
   closet: {
     file: "Closet.glb",
-    // Sol duvara yaslı
-    position: { x: -5.25, y: 0, z: 0.0 },
+    // Sağ tarafa taşındı
+    position: { x: 5.25, y: 0, z: 1.5 },
     scale: { x: 0.75, y: 0.75, z: 0.75 },
-    rotation: { x: 0, y: Math.PI / 2, z: 0 },
+    rotation: { x: 0, y: -Math.PI / 2, z: 0 },
   },
   bookcase: {
     file: "Bookcase with Books.glb",
@@ -294,10 +294,10 @@ const REALISTIC_MODELS = {
   },
   window1: {
     file: "Window1 white open 1731.glb",
-    // Ön duvara yaslı
-    position: { x: 0, y: 0.8, z: 5.55 },
-    scale: { x: 0.75, y: 0.75, z: 0.75 },
-    rotation: { x: 0, y: Math.PI, z: 0 },
+    // Sol duvara yaslı ve yukarıda
+    position: { x: -5.95, y: 1.3, z: 0.0 },
+    scale: { x: 0.65, y: 0.65, z: 0.65 },
+    rotation: { x: 0, y: Math.PI / 2, z: 0 },
   },
   ceilingLight: {
     file: "Light Ceiling.glb",
@@ -314,16 +314,16 @@ const REALISTIC_MODELS = {
   },
   glass: {
     file: "Glass.glb",
-    // Bardak: masa üstü gibi, duvara yakın
-    position: { x: 5.05, y: 0.85, z: -1.7 },
-    scale: { x: 0.22, y: 0.22, z: 0.22 },
+    // Bardak: bilgisayarın yanında
+    position: { x: 5.35, y: 0.85, z: -1.25 },
+    scale: { x: 0.11, y: 0.11, z: 0.11 },
     rotation: { x: 0, y: 0, z: 0 },
   },
   wallPainting: {
     file: "Wall painting.glb",
-    // Arka duvara yaslı
-    position: { x: 0, y: 1.35, z: -5.55 },
-    scale: { x: 0.28, y: 0.28, z: 0.28 },
+    // Ön duvarda sol duvarda (+z, -x)
+    position: { x: -4.0, y: 1.5, z: 5.5 },
+    scale: { x: 0.5, y: 0.5, z: 0.5 },
     rotation: { x: 0, y: 0, z: 0 },
   },
   smashedGlass: {
@@ -335,8 +335,8 @@ const REALISTIC_MODELS = {
   },
   officeChair: {
     file: "Office Chair.glb",
-    // Masa önü
-    position: { x: 4.25, y: 0, z: -1.55 },
+    // Masanın yanında
+    position: { x: 4.5, y: 0, z: -2.5 },
     scale: { x: 0.85, y: 0.85, z: 0.85 },
     rotation: { x: 0, y: Math.PI, z: 0 },
   },
@@ -350,10 +350,17 @@ const REALISTIC_MODELS = {
   },
   computer: {
     file: "Computer.glb",
-    // Masa üstünde
-    position: { x: 5.15, y: 0.85, z: -1.25 },
-    scale: { x: 0.65, y: 0.65, z: 0.65 },
-    rotation: { x: 0, y: -Math.PI / 2, z: 0 },
+    // Masanın üstünde (sağ duvar)
+    position: { x: 5.05, y: 1.0, z: -1.65 },
+    scale: { x: 1.2, y: 1.2, z: 1.2 },
+    rotation: { x: 0, y: Math.PI / 2, z: 0 },
+  },
+  backpack: {
+    file: "Backpack.glb",
+    // Masanın yanında
+    position: { x: 4.5, y: 0, z: -3.0 },
+    scale: { x: 0.5, y: 0.5, z: 0.5 },
+    rotation: { x: 0, y: 0, z: 0 },
   },
 };
 
@@ -936,7 +943,7 @@ async function createRoom() {
   // KAPI (assets/3D/Door.glb ile - prosedürel kapı kaldırıldı)
   const doorWidth = 1.0;
 
-  // Pivot noktası için grup (Menteşe solda olsun)
+  // Pivot noktası için grup (Menteşe solda olsun, kapı boşluğunda)
   const doorGroup = new THREE.Group();
   doorGroup.position.set(-0.5, doorHeight / 2, roomSize / 2); // Menteşe noktası
 
@@ -957,7 +964,7 @@ async function createRoom() {
 
     // Kutu kapı ile aynı yerleşim mantığı (hinge x=-0.5 olacak şekilde)
     doorModel.position.set(doorWidth / 2, 0, 0);
-    doorModel.scale.set(0.9, 0.9, 0.9);
+    doorModel.scale.set(1.0, 1.0, 1.0);
     doorModel.rotation.set(0, Math.PI / 2, 0);
 
     // Raycaster / etkileşim için mesh isimlerini sabitle
