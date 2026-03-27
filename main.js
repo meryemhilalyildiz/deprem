@@ -34,9 +34,6 @@ let nextDoorPenaltyAt = 0;
 let backpackCollected = false;
 let scenarioEndOverlay = null;
 let roomTourStarted = false;
-let isCrouching = false;
-let currentEyeHeight = 1.6;
-const CROUCH_EYE_HEIGHT = 1.0;
 const safeZonesUsed = {
   bedLeft: false,
   bedRight: false,
@@ -156,10 +153,6 @@ function onKeyDown(event) {
         handleInteraction(currentInteractable);
       }
       break;
-    case "KeyC":
-    case "ControlLeft":
-      isCrouching = true;
-      break;
   }
 }
 
@@ -169,7 +162,13 @@ function handleInteraction(object) {
   if (!timerStarted) return;
 
   if (object.type === "door") {
-    endScenario("SENARYO BİTTİ", "door_interaction");
+    addScore(-20, "Kapı ile etkileşim cezası (-20)");
+    showMessage("⚠ Sarsıntı sırasında kapıyı kullanmayın! -20 puan", 1800);
+    decisionLog.push({
+      time: Date.now() - startTime,
+      action: "door_interaction_penalty",
+      description: "Kapı ile etkileşimde ceza verildi.",
+    });
     return;
   }
 
@@ -209,6 +208,7 @@ function handleInteraction(object) {
     safeZonesUsed[object.key] = true;
     addScore(zone.points, `${zone.label} güvenli alanı (+${zone.points})`);
     camera.position.copy(zone.targetPosition);
+    camera.position.y = Math.max(0.6, EYE_HEIGHT - 0.8);
     camera.lookAt(zone.targetLookAt);
     showMessage(`✅ ${zone.label}: Çök-Kapan-Tut! (+${zone.points})`, 2500);
     decisionLog.push({
@@ -321,18 +321,7 @@ function onKeyUp(event) {
     case "KeyD":
       moveState.right = false;
       break;
-    case "KeyC":
-    case "ControlLeft":
-      isCrouching = false;
-      break;
   }
-}
-
-function updatePosture(delta) {
-  const targetHeight = isCrouching ? CROUCH_EYE_HEIGHT : EYE_HEIGHT;
-  const lerpFactor = Math.min(1, delta * 10);
-  currentEyeHeight = THREE.MathUtils.lerp(currentEyeHeight, targetHeight, lerpFactor);
-  camera.position.y = currentEyeHeight;
 }
 
 // Oda içi sınır için yardımcı fonksiyon (GÜNCELLENDİ: Kapı ve Dışarı Çıkış)
@@ -509,6 +498,13 @@ const REALISTIC_MODELS = {
     position: { x: 4.6, y: 0, z: -1 },
     scale: { x: 0.3, y: 0.3, z: 0.3 },
     rotation: { x: 0, y: 0, z: 0 },
+  },
+  rug: {
+    file: "Modern rug.glb",
+    // Odanın ortasında, zemine yakın modern halı
+    position: { x: 0, y: 0.01, z: 0 },
+    scale: { x: 0.6, y: 0.6, z: 0.6 },
+    rotation: { x: 0, y: Math.PI + Math.PI / 2, z: 0 },
   },
   officeChair: {
     file: "Office Chair-2.glb",
@@ -1003,11 +999,90 @@ async function createRoom() {
     metalness: 0.05,
   });
 
-  // Gerçekçi ahşap zemin dokusu için malzeme
+  // Parke desenini dış texture dosyası olmadan CanvasTexture ile üret
+  function createParquetTexture() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    // Deterministik küçük rasgelelik (aynı tile her çalıştırmada aynı görünsün)
+    const hash = (x, y) => {
+      let h = x * 374761393 + y * 668265263; // integer karıştırma
+      h = (h ^ (h >> 13)) * 1274126177;
+      return ((h ^ (h >> 16)) >>> 0) / 4294967295;
+    };
+
+    // Arka plan (açık meşe tonu)
+    ctx.fillStyle = "#7a5a3a";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const cell = 64; // tile hücresi (metre değil, UV karşılığı)
+    const plankW = 10; // parke plank genişliği (px)
+    const seam = 2; // aralıklardaki derz kalınlığı (px)
+
+    for (let cy = -1; cy <= canvas.height / cell + 1; cy++) {
+      for (let cx = -1; cx <= canvas.width / cell + 1; cx++) {
+        const px = cx * cell;
+        const py = cy * cell;
+
+        const even = (cx + cy) % 2 === 0;
+        ctx.save();
+        ctx.translate(px + cell / 2, py + cell / 2);
+        ctx.rotate(even ? 0 : Math.PI / 2);
+        ctx.translate(-cell / 2, -cell / 2);
+
+        // Hücre içini planklarla doldur
+        for (let s = -cell / 2; s < cell; s += plankW + seam) {
+          const r = hash(cx, cy + s);
+          const woodA = 120 + r * 40; // renk varyasyonu
+          const woodB = 85 + r * 25;
+
+          ctx.fillStyle = `rgb(${woodA}, ${woodB}, 60)`;
+          ctx.fillRect(s, 0, plankW, cell);
+
+          // Derz çizgisi
+          ctx.fillStyle = "rgba(60, 40, 20, 0.65)";
+          ctx.fillRect(s + plankW, 0, seam, cell);
+        }
+
+        // Kenar gölgesi (hafif derinlik hissi)
+        ctx.strokeStyle = "rgba(20, 10, 0, 0.25)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, cell, cell);
+        ctx.restore();
+      }
+    }
+
+    // Hafif netlik / kir efekti
+    ctx.globalAlpha = 0.12;
+    for (let i = 0; i < 9000; i++) {
+      const x = Math.random() * canvas.width;
+      const y = Math.random() * canvas.height;
+      ctx.fillStyle = "rgba(0,0,0,1)";
+      ctx.fillRect(x, y, 1, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.needsUpdate = true;
+
+    // Zemin boyutuna göre tekrar sayısı
+    tex.repeat.set(2.2, 2.2);
+    return tex;
+  }
+
+  const parquetTexture = createParquetTexture();
   const floorMaterial = new THREE.MeshStandardMaterial({
-    color: 0x5F5345,
-    roughness: 0.8,
-    metalness: 0.05,
+    map: parquetTexture || undefined,
+    color: 0xffffff,
+    roughness: 0.85,
+    metalness: 0.02,
   });
 
   const ceilingMaterial = new THREE.MeshStandardMaterial({
@@ -1246,6 +1321,7 @@ async function createRoom() {
 
   addIfLoaded("ceilingLight");
   addIfLoaded("wallPainting");
+  addIfLoaded("rug");
   addIfLoaded("orchid");
   addIfLoaded("glass");
   addIfLoaded("officeChair");
@@ -2023,7 +2099,6 @@ function startEarthquake() {
     safeZonesUsed[k] = false;
   });
   if (scenarioEndOverlay) scenarioEndOverlay.style.display = "none";
-  isCrouching = false;
 
   // Deprem başlayınca bardak kırılır: bardak gider, kırık bardak görünür
   if (loadedModels.glass && loadedModels.glass.parent) {
@@ -2221,7 +2296,6 @@ function animate() {
 
   // WASD ile birinci şahıs hareket güncellemesi
   updateFirstPersonMovement(deltaTime);
-  updatePosture(deltaTime);
 
   // Deprem sallanma efekti
   if (earthquakeEnable && guiObject.earthquakeBoolean) {
@@ -2484,8 +2558,6 @@ function startScenario() {
   userScore = 0;
   decisionLog = [];
   backpackCollected = false;
-  isCrouching = false;
-  currentEyeHeight = EYE_HEIGHT;
   if (loadedModels.backpack && loadedModels.backpack.parent !== room) {
     room.add(loadedModels.backpack);
   }
